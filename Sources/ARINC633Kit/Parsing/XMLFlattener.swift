@@ -10,12 +10,12 @@
 import Foundation
 
 /// Represents one leaf value in the XML with its full path and attributes.
-struct XMLNode: Identifiable {
-    let id = UUID()
-    let path: String          // e.g. "OFP/Flight/Departure/ICAO"
-    let element: String       // last component, e.g. "ICAO"
-    let value: String
-    let attributes: [String: String]
+public struct XMLNode: Identifiable {
+    public let id = UUID()
+    public let path: String          // e.g. "OFP/Flight/Departure/ICAO"
+    public let element: String       // last component, e.g. "ICAO"
+    public let value: String
+    public let attributes: [String: String]
 }
 
 /// Flattens any XML into a list of leaf nodes with full paths.

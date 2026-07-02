@@ -106,7 +106,7 @@ public enum OFPSmartExtractor {
         r.costIndex = idx.find(["costindex", "ci"])
         if let d = idx.find(["totaldistance", "grounddistance", "distance",
                               "trackmiles", "airdistance"]) {
-            r.distanceNM = Double(d.filter { "0123456789.".contains(\$0) })
+            r.distanceNM = Double(d.filter { "0123456789.".contains($0) })
         }
         r.waypoints = extractWaypoints(idx)
         return r
@@ -122,20 +122,20 @@ public enum OFPSmartExtractor {
         return groups.compactMap { group in
             guard let name = group.first(where: {
                 ["name", "identifier", "fix", "ident", "waypointname"]
-                    .contains(\$0.element.lowercased())
+                    .contains($0.element.lowercased())
             })?.value, !name.isEmpty else { return nil }
             return Waypoint(
                 name: name,
-                latitude: group.first(where: { \$0.element.lowercased() == "latitude" })
-                    .flatMap { Double(\$0.value) },
-                longitude: group.first(where: { \$0.element.lowercased() == "longitude" })
-                    .flatMap { Double(\$0.value) },
+                latitude: group.first(where: { $0.element.lowercased() == "latitude" })
+                    .flatMap { Double($0.value) },
+                longitude: group.first(where: { $0.element.lowercased() == "longitude" })
+                    .flatMap { Double($0.value) },
                 altitude: group.first(where: {
-                    ["altitude", "fl", "flightlevel"].contains(\$0.element.lowercased())
+                    ["altitude", "fl", "flightlevel"].contains($0.element.lowercased())
                 })?.value,
                 eta: group.first(where: {
                     ["eta", "estimatedtimeofarrival", "time"]
-                        .contains(\$0.element.lowercased())
+                        .contains($0.element.lowercased())
                 })?.value
             )
         }
@@ -147,7 +147,7 @@ public enum OFPSmartExtractor {
         let f = KeywordIndex(nodes: fuelNodes)
         var fuel = OFPFuel()
         fuel.taxi          = f.find(["taxi", "taxifuel"])
-        fuel.trip          = f.find(["trip", "tripfuel"])
+        fuel.tripFuel      = f.find(["trip", "tripfuel"])
         fuel.contingency   = f.find(["contingency", "contingencyfuel"])
         fuel.alternate     = f.find(["alternate", "alternatefuel"])
         fuel.finalReserve  = f.find(["finalreserve", "finalreservefuel", "reserve"])
@@ -172,7 +172,7 @@ public enum OFPSmartExtractor {
         w.unit               = idx.find(["weightunit"])
         let has = [w.dryOperatingWeight, w.zeroFuelWeight, w.takeoffWeight,
                    w.landingWeight, w.payload]
-            .contains { \$0?.isEmpty == false }
+            .contains { $0?.isEmpty == false }
         return has ? w : nil
     }
 
@@ -183,21 +183,21 @@ public enum OFPSmartExtractor {
         }
         return groups.compactMap { group in
             let icao = group.first(where: {
-                ["icao", "airportcode", "code", "ident"].contains(\$0.element.lowercased())
+                ["icao", "airportcode", "code", "ident"].contains($0.element.lowercased())
             })?.value ?? ""
             guard !icao.isEmpty else { return nil }
             return OFPAlternate(
                 icao: icao,
                 name: group.first(where: {
-                    ["name", "airportname"].contains(\$0.element.lowercased())
+                    ["name", "airportname"].contains($0.element.lowercased())
                 })?.value,
-                distanceNM: group.first(where: { \$0.element.lowercased() == "distance" })
-                    .flatMap { Double(\$0.value) },
+                distanceNM: group.first(where: { $0.element.lowercased() == "distance" })
+                    .flatMap { Double($0.value) },
                 fuelRequired: group.first(where: {
-                    ["fuelrequired", "fuel"].contains(\$0.element.lowercased())
+                    ["fuelrequired", "fuel"].contains($0.element.lowercased())
                 })?.value,
                 flightTime: group.first(where: {
-                    ["flighttime", "time"].contains(\$0.element.lowercased())
+                    ["flighttime", "time"].contains($0.element.lowercased())
                 })?.value
             )
         }
@@ -211,17 +211,17 @@ public enum OFPSmartExtractor {
         }
         return groups.compactMap { group in
             let name = group.first(where: {
-                ["name", "fullname", "crewname"].contains(\$0.element.lowercased())
+                ["name", "fullname", "crewname"].contains($0.element.lowercased())
             })?.value
             let role = group.first(where: {
-                ["role", "position", "function"].contains(\$0.element.lowercased())
+                ["role", "position", "function"].contains($0.element.lowercased())
             })?.value
             guard name != nil || role != nil else { return nil }
             return OFPCrew(
                 role: role,
                 name: name,
                 employeeId: group.first(where: {
-                    ["employeeid", "id", "staffid"].contains(\$0.element.lowercased())
+                    ["employeeid", "id", "staffid"].contains($0.element.lowercased())
                 })?.value
             )
         }
@@ -235,16 +235,16 @@ public enum OFPSmartExtractor {
         }
         return groups.compactMap { group in
             let icao = group.first(where: {
-                ["icao", "airportcode"].contains(\$0.element.lowercased())
+                ["icao", "airportcode"].contains($0.element.lowercased())
             })?.value ?? ""
             guard !icao.isEmpty else { return nil }
             return OFPWeatherEntry(
                 icao: icao,
                 metar: group.first(where: {
-                    ["metar", "metartext"].contains(\$0.element.lowercased())
+                    ["metar", "metartext"].contains($0.element.lowercased())
                 })?.value,
                 taf: group.first(where: {
-                    ["taf", "taftext"].contains(\$0.element.lowercased())
+                    ["taf", "taftext"].contains($0.element.lowercased())
                 })?.value
             )
         }
@@ -253,7 +253,7 @@ public enum OFPSmartExtractor {
     private static func extractRemarks(_ idx: KeywordIndex) -> [String] {
         idx.nodes.filter {
             ["remarks", "remark", "notes", "comment"]
-                .contains(\$0.element.lowercased())
+                .contains($0.element.lowercased())
         }.map(\.value)
     }
 }

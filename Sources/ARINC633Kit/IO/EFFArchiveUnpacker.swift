@@ -33,8 +33,8 @@ public enum EFFArchiveUnpacker {
         let allFiles = filesRecursively(in: workDir)
         guard !allFiles.isEmpty else { throw EFFReaderError.emptyArchive }
 
-        let lstFile = allFiles.first { \$0.pathExtension.lowercased() == "lst" }
-        let datFile = allFiles.first { \$0.pathExtension.lowercased() == "dat" }
+        let lstFile = allFiles.first { $0.pathExtension.lowercased() == "lst" }
+        let datFile = allFiles.first { $0.pathExtension.lowercased() == "dat" }
         guard let datFile = datFile else { throw EFFReaderError.missingDatFile }
 
         let datExtractDir = workDir.appendingPathComponent("__dat_extracted__")

@@ -10,6 +10,8 @@
 import Foundation
 
 final class FlightPlanXMLParser: NSObject, XMLParserDelegate {
+    private let iso8601 = ISO8601DateFormatter()
+
     private var plan = FlightPlan()
     private var currentElement = ""
     private var currentText = ""
@@ -60,9 +62,9 @@ final class FlightPlanXMLParser: NSObject, XMLParserDelegate {
         case "Route", "RouteString":
             plan.route = value
         case "ScheduledTimeOfDeparture", "STD":
-            plan.scheduledDeparture = ISO8601DateFormatter().date(from: value)
+            plan.scheduledDeparture = iso8601.date(from: value)
         case "ScheduledTimeOfArrival", "STA":
-            plan.scheduledArrival = ISO8601DateFormatter().date(from: value)
+            plan.scheduledArrival = iso8601.date(from: value)
         case "CrewMember", "Pilot":
             plan.crew.append(value)
 

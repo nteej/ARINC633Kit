@@ -38,7 +38,7 @@ public struct KeywordIndex {
             let el = n.element.lowercased()
             let path = n.path.lowercased()
             if value.contains(el),
-               contextAny.contains(where: { path.contains(\$0) }) {
+               contextAny.contains(where: { path.contains($0) }) {
                 return n.value
             }
         }
@@ -48,7 +48,7 @@ public struct KeywordIndex {
     /// All nodes whose path contains the substring.
     public func nodes(pathContaining substring: String) -> [XMLNode] {
         let needle = substring.lowercased()
-        return nodes.filter { \$0.path.lowercased().contains(needle) }
+        return nodes.filter { $0.path.lowercased().contains(needle) }
     }
 
     /// Group nodes by their immediate parent path where parent matches predicate.

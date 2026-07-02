@@ -44,8 +44,8 @@ public enum EFFReader {
             let relative = url.path.replacingOccurrences(
                 of: root.path + "/", with: "")
             let entry = manifest?.entries.first {
-                \$0.fileName.caseInsensitiveCompare(relative) == .orderedSame
-                || \$0.fileName.lowercased()
+                $0.fileName.caseInsensitiveCompare(relative) == .orderedSame
+                || $0.fileName.lowercased()
                     .hasSuffix(url.lastPathComponent.lowercased())
             }
             let category: DocumentCategory = entry?.category
@@ -63,13 +63,13 @@ public enum EFFReader {
                 description: entry?.description
             )
         }
-        .sorted { \$0.name < \$1.name }
+        .sorted { $0.name < $1.name }
     }
 
     private static func applyExtractors(to package: inout EFFPackage) {
         for doc in package.documents {
-            // OFP
-            if OFPSmartExtractor.canHandle(fileName: doc.name) {
+            // OFP — stop at first match; later files with the same name pattern should not overwrite
+            if package.ofp == nil, OFPSmartExtractor.canHandle(fileName: doc.name) {
                 package.ofp = OFPSmartExtractor.extract(from: doc.url)
                 package.ofpDocument = doc
             }

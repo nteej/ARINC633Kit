@@ -11,8 +11,7 @@ let package = Package(
         .macCatalyst(.v16)
     ],
     products: [
-        .library(name: "ARINC633Kit",  targets: ["ARINC633Kit"]),
-        .library(name: "EFFReaderUI",  targets: ["EFFReaderUI"])
+        .library(name: "ARINC633Kit",  targets: ["ARINC633Kit"])
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.0")
@@ -26,11 +25,6 @@ let package = Package(
                 .product(name: "ZIPFoundation", package: "ZIPFoundation")
             ],
             path: "Sources/ARINC633Kit"
-        ),
-        .target(
-            name: "EFFReaderUI",
-            dependencies: ["ARINC633Kit"],
-            path: "Sources/EFFReaderUI"
         ),
         .testTarget(
             name: "ARINC633KitTests",
