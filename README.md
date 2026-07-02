@@ -72,9 +72,9 @@ Or in Xcode: **File → Add Packages…** → paste the repository URL.
 
 | Platform      | Minimum |
 |---------------|---------|
-| iOS / iPadOS  | 16.0    |
-| macOS         | 13.0    |
-| Mac Catalyst  | 16.0    |
+| iOS / iPadOS  | 15.0    |
+| macOS         | 12.0    |
+| Mac Catalyst  | 15.0    |
 | Swift         | 6.0     |
 
 ---

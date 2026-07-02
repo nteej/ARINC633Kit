@@ -6,9 +6,9 @@ import PackageDescription
 let package = Package(
     name: "ARINC633Kit",
     platforms: [
-        .iOS(.v16),
-        .macOS(.v13),
-        .macCatalyst(.v16)
+        .iOS(.v15),
+        .macOS(.v12),
+        .macCatalyst(.v15)
     ],
     products: [
         .library(name: "ARINC633Kit",  targets: ["ARINC633Kit"])
