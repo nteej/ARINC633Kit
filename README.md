@@ -1,10 +1,8 @@
 # ARINC633Kit
 
-A Swift package for reading **ARINC 633** Electronic Flight Folder (`.eff`) files on iPadOS, iOS, and macOS.
+A Swift package for reading **ARINC 633** Electronic Flight Folder (`.eff`) files on iOS, iPadOS, and macOS.
 
 `ARINC633Kit` provides a schema-agnostic reader for the airline-operational data exchanged between Airline Operational Control (AOC) systems and Electronic Flight Bags (EFBs) — Operational Flight Plans (OFP), weather, NOTAMs, load planning, and more.
-
-Ships with an optional SwiftUI reference UI (`EFFReaderUI`) that renders the parsed package on iPad.
 
 ---
 
@@ -18,12 +16,12 @@ Supplement revisions (633-2 through 633-5) have progressively added schema exten
 
 ## Features
 
-- **ZIP + MIME container handling** — Unpacks `.eff` archives whether they contain traditional `lst/` + `dat/` folders **or** sibling `.lst` (XML manifest) + `.dat` (payload) files.
-- **Manifest parsing** — Reads the M633 header block and enumerates the payload documents.
+- **ZIP + MIME container handling** — Unpacks `.eff` archives whether they contain a traditional folder layout (`lst/` + `dat/`) or sibling-file layout (`.lst` manifest + `.dat` MIME multipart payload).
+- **Manifest parsing** — Reads the M633 header block and enumerates payload documents from the `.lst` file.
 - **OFP Smart Extractor** — Auto-detects the Operational Flight Plan among all payloads and extracts flight number, route, ETD/ETA, alternates, fuel, weights, waypoints, and remarks — regardless of vendor element naming.
-- **Schema-agnostic XML flattener** — Converts arbitrary XML trees to a browsable `[XMLNode]` structure with search-friendly keyword indexing.
-- **Extensible message pipeline** — Add new document types (Loadsheet, NOTAM parser, etc.) by conforming to `ARINC633MessageExtractor`.
-- **SwiftUI reference UI** — Optional `EFFReaderUI` target with card-based document list, rich OFP summary view, and full XML field tree browser.
+- **Schema-agnostic XML flattener** — Converts arbitrary XML trees to a browsable `[XMLNode]` list with keyword-indexed lookup via `KeywordIndex`.
+- **Extensible message pipeline** — Add new document type parsers by conforming to `ARINC633MessageExtractor`.
+- **No SwiftUI dependency** — Core module is pure Foundation, suitable for CLI tools, server-side Swift, or non-UI test harnesses.
 
 ---
 
@@ -31,24 +29,20 @@ Supplement revisions (633-2 through 633-5) have progressively added schema exten
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    EFFReaderUI  (SwiftUI)               │
-│  Screens • Components • ViewModels                      │
-└──────────────────────────┬──────────────────────────────┘
-                           │ depends on
-┌──────────────────────────▼──────────────────────────────┐
 │                     ARINC633Kit  (core)                 │
 │                                                         │
-│  IO           ─  EFFReader, ArchiveUnpacker, MIME       │
-│  Parsing      ─  XMLFlattener, OFPSmartExtractor,       │
-│                  KeywordIndex, ManifestParser           │
-│  Models       ─  EFFPackage, OFPDocument, XMLNode, …    │
+│  IO           ─  EFFReader, EFFArchiveUnpacker,         │
+│                  MIMEMultipartExtractor                 │
+│  Parsing      ─  XMLFlattener, KeywordIndex,            │
+│                  OFPSmartExtractor, ManifestParser,     │
+│                  DateParsing                            │
+│  Models       ─  EFFPackage, EFFDocument, OFPDocument,  │
+│                  XMLNode, FlightPlan, Waypoint, …       │
 │  Categorization  DocumentCategory, DocumentClassifier   │
 │                                                         │
 │  Dependencies:   Foundation, ZIPFoundation              │
 └─────────────────────────────────────────────────────────┘
 ```
-
-The core module has **no SwiftUI dependency** so it can be reused in command-line tools, server-side Swift, or non-UI test harnesses.
 
 ---
 
@@ -66,8 +60,7 @@ targets: [
     .target(
         name: "MyApp",
         dependencies: [
-            .product(name: "ARINC633Kit", package: "ARINC633Kit"),
-            .product(name: "EFFReaderUI", package: "ARINC633Kit")  // optional UI
+            .product(name: "ARINC633Kit", package: "ARINC633Kit")
         ]
     )
 ]
@@ -82,7 +75,7 @@ Or in Xcode: **File → Add Packages…** → paste the repository URL.
 | iOS / iPadOS  | 16.0    |
 | macOS         | 13.0    |
 | Mac Catalyst  | 16.0    |
-| Swift         | 5.9     |
+| Swift         | 6.0     |
 
 ---
 
@@ -96,35 +89,91 @@ import ARINC633Kit
 let url = URL(fileURLWithPath: "/path/to/flight.eff")
 
 do {
-    let package = try EFFReader().read(from: url)
+    let package = try ARINC633Kit.read(from: url)
+    defer { package.cleanup() }   // frees the temporary extraction directory
 
-    print("Flight:", package.manifest.flightNumber ?? "-")
+    print("Flight:   ", package.manifest?.flightNumber ?? "-")
     print("Documents:", package.documents.count)
 
-    if let ofp = package.ofpDocuments.first,
-       let plan = ofp.flightPlan {
-        print("Route:", plan.route)
-        print("ETD:", plan.etd?.description ?? "-")
-        print("Fuel:", plan.blockFuelKg ?? 0)
+    if let ofp = package.ofp {
+        print("Route:    ", ofp.route.routeString ?? "-")
+        print("Dep/Arr:  ", ofp.flightInfo.departureICAO ?? "-",
+                           "→", ofp.flightInfo.arrivalICAO ?? "-")
+        print("ETD:      ", ofp.flightInfo.etd?.description ?? "-")
+        print("Block fuel:", ofp.fuel?.blockFuel ?? "-")
     }
+} catch let error as EFFReaderError {
+    print("EFF error:", error.localizedDescription)
 } catch {
-    print("Failed:", error)
+    print("Unexpected error:", error)
 }
 ```
 
-### Drop-in SwiftUI view
+### Inspect all documents
 
 ```swift
-import SwiftUI
-import ARINC633Kit
-import EFFReaderUI
+let package = try ARINC633Kit.read(from: url)
+defer { package.cleanup() }
 
-struct RootView: View {
-    var body: some View {
-        ContentView()  // ships with file picker + full renderer
+for doc in package.documents {
+    print(doc.category.displayName, doc.name, doc.sizeBytes, "bytes")
+}
+```
+
+### Browse the raw XML field tree
+
+```swift
+if let ofp = package.ofp {
+    for node in ofp.allNodes where node.path.contains("Fuel") {
+        print(node.path, "=", node.value)
     }
 }
 ```
+
+---
+
+## Model Overview
+
+### `EFFPackage`
+
+The top-level result of `ARINC633Kit.read(from:)`.
+
+| Property | Type | Description |
+|---|---|---|
+| `fileName` | `String` | Original `.eff` filename |
+| `manifest` | `EFFManifest?` | Parsed `.lst` manifest (package ID, airline, entries) |
+| `documents` | `[EFFDocument]` | All files extracted from the `.dat` payload |
+| `ofp` | `OFPDocument?` | Parsed Operational Flight Plan |
+| `ofpDocument` | `EFFDocument?` | The raw `EFFDocument` that yielded the OFP |
+| `flightPlan` | `FlightPlan?` | Structured flight plan (populated by `FlightPlanXMLParser`) |
+| `airportWeathers` | `[AirportWeather]` | METAR/TAF entries |
+| `notams` | `[Notam]` | NOTAM records |
+| `extractionRoot` | `URL?` | Temporary directory holding unpacked files |
+| `cleanup()` | — | Deletes `extractionRoot` from disk |
+
+### `OFPDocument`
+
+Extracted from the OFP XML by `OFPSmartExtractor`.
+
+| Property | Type | Description |
+|---|---|---|
+| `header` | `M633Header` | ARINC 633 message envelope (sender, messageId, version, …) |
+| `flightInfo` | `OFPFlightInfo` | Flight number, aircraft, dep/arr ICAO, STD/STA, ETD/ETA |
+| `route` | `OFPRoute` | Route string, distance NM, cruise level, waypoints |
+| `fuel` | `OFPFuel?` | Taxi, tripFuel, contingency, block, total, unit |
+| `weights` | `OFPWeights?` | DOW, ZFW, TOW, LDW, MTOW, MLW, payload, unit |
+| `alternates` | `[OFPAlternate]` | Alternate airports with distance and fuel |
+| `crew` | `[OFPCrew]` | Crew members with role and name |
+| `weatherSummary` | `[OFPWeatherEntry]` | METAR/TAF per airport embedded in the OFP |
+| `remarks` | `[String]` | Free-text remark fields |
+| `rawXMLPreview` | `String?` | First 8 000 characters of the source XML |
+| `allNodes` | `[XMLNode]` | Full flattened node list for custom field lookup |
+
+### `DocumentCategory`
+
+An enum describing the type of each `EFFDocument`:
+
+`ofp` · `flightPlan` · `weather` · `notam` · `loadsheet` · `chart` · `image` · `xml` · `pdf` · `other`
 
 ---
 
@@ -147,12 +196,12 @@ sample.eff  (ZIP)
 **B. Sibling-file layout** (common on real airline exports)
 
 ```
-XL261X_XXS115_200619_RJAA_RKSI_F_260619072857.eff  (ZIP)
-├── XL261X_XXS115_200619_RJAA_RKSI_F_260619072857.lst   (XML manifest)
-└── XL261X_XXS115_200619_RJAA_RKSI_F_260619072857.dat   (MIME multipart payload)
+XL261X_XXS115_200619_RJAA_RKSI.eff  (ZIP)
+├── XL261X_XXS115_200619_RJAA_RKSI.lst   (XML manifest)
+└── XL261X_XXS115_200619_RJAA_RKSI.dat   (ZIP or MIME multipart payload)
 ```
 
-For layout **B**, the `.dat` file is parsed as a MIME multipart envelope, and each part is extracted as an `EFFDocument`.
+For layout **B**, the `.dat` file is first attempted as a nested ZIP. If that fails, it is parsed as a MIME multipart envelope and each part is extracted as an `EFFDocument`.
 
 ---
 
@@ -163,29 +212,52 @@ Conform to `ARINC633MessageExtractor` to add new document interpreters without m
 ```swift
 import ARINC633Kit
 
-struct LoadsheetExtractor: ARINC633MessageExtractor {
-    typealias Output = Loadsheet
+enum LoadsheetExtractor: ARINC633MessageExtractor {
+    typealias Output = MyLoadsheet
 
-    func canExtract(from document: EFFDocument) -> Bool {
-        document.filename.localizedCaseInsensitiveContains("loadsheet")
+    static var category: DocumentCategory { .loadsheet }
+
+    static func canHandle(fileName: String) -> Bool {
+        fileName.lowercased().contains("loadsheet")
     }
 
-    func extract(from document: EFFDocument) throws -> Loadsheet {
-        let tree = try XMLFlattener().flatten(document.data)
-        return Loadsheet(
-            zeroFuelWeight: KeywordIndex(tree).firstDouble(matching: ["zfw", "zero_fuel_weight"]),
-            takeoffWeight:  KeywordIndex(tree).firstDouble(matching: ["tow", "takeoff_weight"])
+    static func extract(from url: URL) -> MyLoadsheet? {
+        let nodes = XMLFlattener().flatten(url: url)
+        let idx = KeywordIndex(nodes: nodes)
+        return MyLoadsheet(
+            zeroFuelWeight: idx.find(["zfw", "zerofuelweight"]),
+            takeoffWeight:  idx.find(["tow", "takeoffweight"])
         )
     }
 }
 ```
 
-Register your extractor with the reader:
+Call your extractor directly alongside the standard read:
 
 ```swift
-let reader = EFFReader(extractors: [LoadsheetExtractor()])
-let package = try reader.read(from: url)
+let package = try ARINC633Kit.read(from: url)
+defer { package.cleanup() }
+
+let loadsheetDocs = package.documents.filter { $0.category == .loadsheet }
+for doc in loadsheetDocs {
+    if let sheet = LoadsheetExtractor.extract(from: doc.url) {
+        print("ZFW:", sheet.zeroFuelWeight ?? "-")
+    }
+}
 ```
+
+---
+
+## Error Handling
+
+`ARINC633Kit.read(from:)` throws `EFFReaderError`:
+
+| Case | Meaning |
+|---|---|
+| `.cannotOpenArchive` | The file could not be opened as a ZIP archive |
+| `.extractionFailed(String)` | ZIP decompression failed; message contains the underlying error |
+| `.emptyArchive` | The archive contained no files |
+| `.missingDatFile` | No `.dat` payload file was found inside the archive |
 
 ---
 

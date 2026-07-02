@@ -1,84 +1,78 @@
 // EFFModels.swift
 import Foundation
 
-struct EFFPackage: Identifiable {
-    let id = UUID()
-    let fileName: String
-    var extractionRoot: URL?  
-    var manifest: EFFManifest?
-    var ofp: OFPDocument?
-    var ofpDocument: EFFDocument?
-    var flightPlan: FlightPlan?
-    var airportWeathers: [AirportWeather] = []
-    var notams: [Notam] = []
-    var documents: [EFFDocument] = []        // everything from /dat
-    var rawFiles: [String: URL] = [:]
+public struct EFFPackage: Identifiable {
+    public let id = UUID()
+    public let fileName: String
+    public var extractionRoot: URL?
+    public var manifest: EFFManifest?
+    public var ofp: OFPDocument?
+    public var ofpDocument: EFFDocument?
+    public var flightPlan: FlightPlan?
+    public var airportWeathers: [AirportWeather] = []
+    public var notams: [Notam] = []
+    public var documents: [EFFDocument] = []        // everything from /dat
+    public var rawFiles: [String: URL] = [:]
+
+    /// Removes the temporary extraction directory from disk.
+    public func cleanup() {
+        guard let root = extractionRoot else { return }
+        try? FileManager.default.removeItem(at: root)
+    }
 }
 
 // Manifest entry from /lst
-struct EFFManifest {
-    var packageId: String?
-    var airline: String?
-    var flightNumber: String?
-    var creationDate: Date?
-    var entries: [EFFManifestEntry] = []
+public struct EFFManifest {
+    public var packageId: String?
+    public var airline: String?
+    public var flightNumber: String?
+    public var creationDate: Date?
+    public var entries: [EFFManifestEntry] = []
 }
 
-struct EFFManifestEntry: Identifiable {
-    let id = UUID()
-    let documentId: String?
-    let fileName: String        // path inside /dat
-    let category: String?       // e.g. "FlightPlan", "Weather", "NOTAM", "Chart"
-    let mimeType: String?
-    let size: Int?
-    let checksum: String?
-    let description: String?
+public struct EFFManifestEntry: Identifiable {
+    public let id = UUID()
+    public let documentId: String?
+    public let fileName: String        // path inside /dat
+    public let category: String?       // e.g. "FlightPlan", "Weather", "NOTAM", "Chart"
+    public let mimeType: String?
+    public let size: Int?
+    public let checksum: String?
+    public let description: String?
 }
 
-// A document extracted from /dat
-struct EFFDocument: Identifiable {
-    let id = UUID()
-    let name: String
-    let path: String            // relative path inside the eff
-    let url: URL                // unpacked location on disk
-    let category: String        // FlightPlan / Weather / NOTAM / Chart / PDF / Image / XML / Other
-    let mimeType: String?
-    let sizeBytes: Int64
-    let description: String?
+public struct FlightPlan {
+    public var flightNumber: String?
+    public var aircraftRegistration: String?
+    public var aircraftType: String?
+    public var departureICAO: String?
+    public var arrivalICAO: String?
+    public var alternateICAO: String?
+    public var scheduledDeparture: Date?
+    public var scheduledArrival: Date?
+    public var route: String?
+    public var crew: [String] = []
+    public var waypoints: [Waypoint] = []
 }
 
-struct FlightPlan {
-    var flightNumber: String?
-    var aircraftRegistration: String?
-    var aircraftType: String?
-    var departureICAO: String?
-    var arrivalICAO: String?
-    var alternateICAO: String?
-    var scheduledDeparture: Date?
-    var scheduledArrival: Date?
-    var route: String?
-    var crew: [String] = []
-    var waypoints: [Waypoint] = []
+public struct Waypoint: Identifiable {
+    public let id = UUID()
+    public let name: String
+    public let latitude: Double?
+    public let longitude: Double?
+    public let altitude: String?
+    public let eta: String?
 }
 
-struct Waypoint: Identifiable {
-    let id = UUID()
-    let name: String
-    let latitude: Double?
-    let longitude: Double?
-    let altitude: String?
-    let eta: String?
+public struct AirportWeather: Identifiable {
+    public let id = UUID()
+    public let icao: String
+    public var metar: String?
+    public var taf: String?
 }
 
-struct AirportWeather: Identifiable {
-    let id = UUID()
-    let icao: String
-    var metar: String?
-    var taf: String?
-}
-
-struct Notam: Identifiable {
-    let id = UUID()
-    let icao: String
-    let text: String
+public struct Notam: Identifiable {
+    public let id = UUID()
+    public let icao: String
+    public let text: String
 }
